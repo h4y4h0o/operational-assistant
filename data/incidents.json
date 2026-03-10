@@ -1,0 +1,23 @@
+[
+  {
+    "incident_id": "INC45",
+    "flight_id": "LC123",
+    "description": "Late baggage delivery, passenger unhappy",
+    "severity": 3,
+    "created_at_utc": "2026-01-10T11:10:00Z"
+  },
+  {
+    "incident_id": "INC46",
+    "flight_id": "LC123",
+    "description": "Mechanical issue on engine 2 reported by crew before departure",
+    "severity": 5,
+    "created_at_utc": "2026-01-10T09:45:00Z"
+  },
+  {
+    "incident_id": "INC47",
+    "flight_id": "LC456",
+    "description": "Catering delivery incomplete, 3 meals missing",
+    "severity": 2,
+    "created_at_utc": "2026-01-10T13:50:00Z"
+  }
+]

@@ -1,0 +1,285 @@
+{
+  "name": "Ops Assistant — Vols & Incidents Pipeline",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "f9163c3e-fb92-4a36-a380-85753410611a",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        -912,
+        336
+      ],
+      "typeVersion": 1,
+      "notes": "Déclenche le pipeline manuellement (ou remplacer par Cron pour automatiser)"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO flights (flight_id, route, sched_dep_utc, actual_dep_utc, status)\n  VALUES (\n    '{{ $json.flight_id }}',\n    '{{ $json.route }}',\n    '{{ $json.sched_dep_utc }}'::timestamptz,\n    NULLIF('{{ $json.actual_dep_utc }}', 'null')::timestamptz,\n    '{{ $json.status }}'\n  )\n  ON CONFLICT (flight_id) DO UPDATE SET\n    actual_dep_utc = EXCLUDED.actual_dep_utc,\n    status = EXCLUDED.status",
+        "options": {}
+      },
+      "id": "38876b78-701e-4a47-a346-4ea42e00022c",
+      "name": "Upsert Flights → Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        -416,
+        336
+      ],
+      "typeVersion": 2.6,
+      "credentials": {
+        "postgres": {
+          "id": "mMt88ZghkY279hhl",
+          "name": "Postgres account"
+        }
+      },
+      "notes": "ON CONFLICT garantit l'idempotence : relancer le workflow ne crée pas de doublons"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO incidents (incident_id, flight_id, description, severity, created_at_utc)\n  VALUES (\n    '{{ $json.incident_id }}',\n    '{{ $json.flight_id }}',\n    '{{ $json.description }}',\n    {{ $json.severity }},\n    '{{ $json.created_at_utc }}'::timestamptz\n  )\n  ON CONFLICT (incident_id) DO NOTHING",
+        "options": {}
+      },
+      "id": "f3370018-b931-4f74-8447-ee598929660c",
+      "name": "Upsert Incidents → Postgres",
+      "type": "n8n-nodes-base.postgres",
+      "position": [
+        128,
+        336
+      ],
+      "typeVersion": 2.6,
+      "credentials": {
+        "postgres": {
+          "id": "mMt88ZghkY279hhl",
+          "name": "Postgres account"
+        }
+      },
+      "notes": "DO NOTHING : si l'incident existe déjà, on ne l'écrase pas (données immuables)"
+    },
+    {
+      "parameters": {
+        "url": "http://host.docker.internal:8080/data/flights.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -656,
+        336
+      ],
+      "id": "3cc84a86-dc3e-4021-adaf-231039cb06f1",
+      "name": "Load Data"
+    },
+    {
+      "parameters": {
+        "url": "http://host.docker.internal:8080/data/incidents.json",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -144,
+        336
+      ],
+      "id": "0d9c9187-f5c6-47b5-9972-4ad4e4fe4566",
+      "name": "Load Data1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://ops-api:8000/ai/analyze",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "flight_id",
+              "value": "LC123"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer dev-token-123"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        416,
+        336
+      ],
+      "id": "5c96b87d-2fd6-442a-aefd-f282acea9b72",
+      "name": "AI Analyse API"
+    },
+    {
+      "parameters": {
+        "url": "http://ops-api:8000/ops/summary",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "date",
+              "value": "2026-01-10"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        656,
+        336
+      ],
+      "id": "71e14e6b-b324-4647-b479-82d1c034bb8e",
+      "name": "Search flights based on date"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hooks.slack.com/services/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",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.message }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1104,
+        336
+      ],
+      "id": "c9206227-52fa-4337-8d4a-838338b976e0",
+      "name": "Slack allerting"
+    },
+    {
+      "parameters": {
+        "jsCode": " const summary = $('Search flights based on date').last().json;\n  const ai = $('AI Analyse API').last().json;\nconst delayed = summary.delayed_flights\n    .map(f => `${f.flight_id} (${f.route}) +${f.delay_minutes} min`)\n    .join(', ') || 'Aucun';\n\n  const incidents = ai.analyzed_incidents\n    .map(i => `${i.incident_id} - ${i.normalized_category} (${Math.round(i.confidence_score * 100)}%)`)\n    .join(' | ') || 'Aucun';\n\n  return [{\n    json: {\n      message: `OPS ALERT | Rapport ${summary.date} | Vols: ${summary.total_flights} | Incidents: ${summary.total_incidents} |\n  Retards: ${delayed} | IA: ${incidents}`\n    }\n  }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        336
+      ],
+      "id": "5c61a1f2-eb46-4e0e-9eb3-239f220bc4bd",
+      "name": "Alert message formating"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Load Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Incidents → Postgres": {
+      "main": [
+        [
+          {
+            "node": "AI Analyse API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert Flights → Postgres": {
+      "main": [
+        [
+          {
+            "node": "Load Data1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Data": {
+      "main": [
+        [
+          {
+            "node": "Upsert Flights → Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Load Data1": {
+      "main": [
+        [
+          {
+            "node": "Upsert Incidents → Postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Analyse API": {
+      "main": [
+        [
+          {
+            "node": "Search flights based on date",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search flights based on date": {
+      "main": [
+        [
+          {
+            "node": "Alert message formating",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert message formating": {
+      "main": [
+        [
+          {
+            "node": "Slack allerting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "e0c2c398-d929-49c6-a7a0-d3da1e6bd42c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "93e0928ecbcc272ec3373231775782517ac7b59d8ff98dd4c5ea638c456821b7"
+  },
+  "id": "ofGbbUw0bI5N5HWbzCzi0",
+  "tags": []
+}

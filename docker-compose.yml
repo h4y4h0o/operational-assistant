@@ -23,6 +23,27 @@ services:
       timeout: 5s
       retries: 5
 
+  # --- API FastAPI ---
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ops-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=opsdb
+      - POSTGRES_USER=opsadmin
+      - POSTGRES_PASSWORD=opspassword123
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - API_TOKENS=dev-token-123
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   # --- n8n (workflow engine) ---
   n8n:
     image: n8nio/n8n:latest

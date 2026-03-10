@@ -37,7 +37,7 @@ RUN apt-get update && apt-get install -y \
 # --- ÉTAPE 6 : Copier et installer les dépendances Python ---
 # On copie SEULEMENT requirements.txt d'abord (optimisation cache Docker)
 # Si le code change mais pas les dépendances, Docker réutilise le cache de cette étape
-COPY requirements.txt .
+COPY api/requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 

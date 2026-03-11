@@ -7,8 +7,8 @@
       "name": "Manual Trigger",
       "type": "n8n-nodes-base.manualTrigger",
       "position": [
-        -896,
-        432
+        -912,
+        336
       ],
       "typeVersion": 1,
       "notes": "Déclenche le pipeline manuellement (ou remplacer par Cron pour automatiser)"
@@ -45,8 +45,8 @@
       "name": "Upsert Incidents → Postgres",
       "type": "n8n-nodes-base.postgres",
       "position": [
-        -400,
-        544
+        128,
+        336
       ],
       "typeVersion": 2.6,
       "credentials": {
@@ -79,8 +79,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        -656,
-        544
+        -144,
+        336
       ],
       "id": "0d9c9187-f5c6-47b5-9972-4ad4e4fe4566",
       "name": "Load Data1"
@@ -112,8 +112,8 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        64,
-        432
+        416,
+        336
       ],
       "id": "5c96b87d-2fd6-442a-aefd-f282acea9b72",
       "name": "AI Analyse API"
@@ -135,11 +135,35 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.3,
       "position": [
-        320,
-        432
+        656,
+        336
       ],
       "id": "71e14e6b-b324-4647-b479-82d1c034bb8e",
       "name": "Search flights based on date"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hooks.slack.com/services/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",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.message }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1104,
+        336
+      ],
+      "id": "c9206227-52fa-4337-8d4a-838338b976e0",
+      "name": "Slack allerting"
     },
     {
       "parameters": {
@@ -148,49 +172,11 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        576,
-        432
+        880,
+        336
       ],
       "id": "5c61a1f2-eb46-4e0e-9eb3-239f220bc4bd",
       "name": "Alert message formating"
-    },
-    {
-      "parameters": {},
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3.2,
-      "position": [
-        -192,
-        432
-      ],
-      "id": "e90304c2-b9f0-46dd-9110-069e1e792d2f",
-      "name": "Merge"
-    },
-    {
-      "parameters": {
-        "select": "channel",
-        "channelId": {
-          "__rl": true,
-          "mode": "name",
-          "value": "#tous-testworkingspace"
-        },
-        "text": "={{ $json.message }}",
-        "otherOptions": {}
-      },
-      "type": "n8n-nodes-base.slack",
-      "typeVersion": 2.4,
-      "position": [
-        832,
-        432
-      ],
-      "id": "e4079166-51e8-46ec-b521-35ee6b1a6e17",
-      "name": "Send a message",
-      "webhookId": "f68cff14-28c4-4f56-a5b2-f0d13d713c71",
-      "credentials": {
-        "slackApi": {
-          "id": "GVyf0DV4NpiauYIX",
-          "name": "Slack account"
-        }
-      }
     }
   ],
   "pinData": {},
@@ -202,11 +188,6 @@
             "node": "Load Data",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Load Data1",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -215,9 +196,9 @@
       "main": [
         [
           {
-            "node": "Merge",
+            "node": "AI Analyse API",
             "type": "main",
-            "index": 1
+            "index": 0
           }
         ]
       ]
@@ -226,7 +207,7 @@
       "main": [
         [
           {
-            "node": "Merge",
+            "node": "Load Data1",
             "type": "main",
             "index": 0
           }
@@ -281,27 +262,11 @@
       "main": [
         [
           {
-            "node": "Send a message",
+            "node": "Slack allerting",
             "type": "main",
             "index": 0
           }
         ]
-      ]
-    },
-    "Merge": {
-      "main": [
-        [
-          {
-            "node": "AI Analyse API",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Send a message": {
-      "main": [
-        []
       ]
     }
   },
@@ -310,7 +275,7 @@
     "executionOrder": "v1",
     "availableInMCP": false
   },
-  "versionId": "1325aae9-56b7-416e-b793-9679c34a8f42",
+  "versionId": "e0c2c398-d929-49c6-a7a0-d3da1e6bd42c",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "93e0928ecbcc272ec3373231775782517ac7b59d8ff98dd4c5ea638c456821b7"

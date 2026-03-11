@@ -5,8 +5,8 @@ Pipeline automatisé de surveillance des vols, analyse IA des incidents, et aler
 ## Architecture réelle (implémentée et testée)
 
 ```
-data/flights.json   ──► HTTP Request (n8n) ──► Upsert Flights  ──► Postgres
-data/incidents.json ──► HTTP Request (n8n) ──► Upsert Incidents ──► Postgres
+data/flights.json   ──► HTTP Request (n8n) ──► Upsert Flights  ──► Postgres 
+──► data/incidents.json ──► HTTP Request (n8n) ──► Upsert Incidents ──► Postgres
                                                                         │
                                                                         ▼
                                                           POST /ai/analyze (FastAPI)

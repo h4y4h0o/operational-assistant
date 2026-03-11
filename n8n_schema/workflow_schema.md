@@ -134,25 +134,7 @@ Le node Slack a `onError: continueErrorOutput` :
 | Bot Token Slack (`xoxb-...`) | Credential n8n "Slack Access Token" (chiffré AES-256) |
 | Password Postgres | Credential n8n "Postgres" (chiffré AES-256) |
 | Bearer Token API | Header `Authorization` en valeur fixe (à migrer en credential) |
-| Clé Groq (`gsk_...`) | Variable d'environnement Docker (`GROQ_API_KEY`) |
+| Clé Groq (`gsk_...`) | Variable d'environnement Docker (`GROQ_API_KEY`) (fait automatiquement par Docker)
 
 **Règle absolue :** Aucun secret n'apparaît en clair dans le JSON du workflow exporté.
 Les credentials sont référencés par leur ID chiffré, jamais par leur valeur.
-
-### Pourquoi les branches flights et incidents sont-elles parallèles ?
-
-Ces deux opérations sont **totalement indépendantes** — il n'existe aucune
-relation entre le chargement des vols et le chargement des incidents à ce
-stade. Les exécuter en parallèle réduit le temps d'exécution de ~2s à ~1s.
-
-Le node **Merge (Append)** garantit que les deux branches sont terminées
-avant de passer à l'analyse IA — évitant ainsi les erreurs de clé étrangère
-(un incident référence un flight_id qui doit exister en base).
-
-### Pourquoi POST /ai/analyze et GET /ops/summary sont-ils séquentiels ?
-
-`POST /ai/analyze` écrit les résultats dans la table `ai_insights`.
-`GET /ops/summary` lit depuis `ai_insights` via un LEFT JOIN.
-
-Les paralléliser retournerait `null` pour `normalized_category` et
-`ops_summary` dans le résumé — les données n'étant pas encore écrites.

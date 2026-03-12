@@ -18,7 +18,10 @@ def get_connection():
 
 
 def get_flights_by_date(date_str: str) -> list[dict]:
-    """Retourne tous les vols d'une date donnée."""
+    """Retourne tous les vols d'une date donnée.
+    Utilise un range sur sched_dep_utc pour bénéficier de l'index btree.
+    DATE(col) = x empêche l'utilisation de l'index car c'est un appel de fonction.
+    """
     query = """
         SELECT flight_id, route, sched_dep_utc, actual_dep_utc, status,
                CASE
@@ -27,12 +30,13 @@ def get_flights_by_date(date_str: str) -> list[dict]:
                  ELSE NULL
                END AS delay_minutes
         FROM flights
-        WHERE DATE(sched_dep_utc) = %s
+        WHERE sched_dep_utc >= %s::date
+          AND sched_dep_utc <  %s::date + INTERVAL '1 day'
         ORDER BY sched_dep_utc
     """
     with get_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(query, (date_str,))
+            cur.execute(query, (date_str, date_str))
             return [dict(row) for row in cur.fetchall()]
 
 
@@ -62,12 +66,13 @@ def get_incidents_by_date(date_str: str) -> list[dict]:
         FROM incidents i
         JOIN flights f ON f.flight_id = i.flight_id
         LEFT JOIN ai_insights ai ON ai.incident_id = i.incident_id
-        WHERE DATE(f.sched_dep_utc) = %s
+        WHERE f.sched_dep_utc >= %s::date
+          AND f.sched_dep_utc <  %s::date + INTERVAL '1 day'
         ORDER BY i.severity DESC
     """
     with get_connection() as conn:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(query, (date_str,))
+            cur.execute(query, (date_str, date_str))
             return [dict(row) for row in cur.fetchall()]
 
 

@@ -127,6 +127,8 @@ Le node Slack a `onError: continueErrorOutput` :
 3. L'administrateur peut **re-jouer l'exécution** depuis l'UI n8n
 4. En production : ajouter un node "Wait 60s → Retry x3" avant Slack
 
+Et activer l'option `Retry on fail` du node Slack.
+
 ### Où stockez-vous les secrets n8n ?
 
 | Secret | Stockage |

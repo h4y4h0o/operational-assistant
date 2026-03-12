@@ -65,9 +65,6 @@ ORDER BY avg_severity DESC, total_incidents DESC;
 --     de quelques ms à plusieurs secondes)
 --   - Il faudrait envisager le partitionnement de la table flights par mois
 --     (PARTITION BY RANGE sur sched_dep_utc)
---   - Un index partiel sur les vols en retard serait pertinent :
---     CREATE INDEX idx_delayed ON flights(actual_dep_utc)
---     WHERE actual_dep_utc - sched_dep_utc > INTERVAL '30 minutes';
 --   - Pour ai_insights, une stratégie d'archivage des vieilles analyses
 --     serait nécessaire pour garder des performances correctes
 -- =============================================================

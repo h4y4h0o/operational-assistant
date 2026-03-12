@@ -264,7 +264,7 @@ Le node n8n "Read/Write from Disk" retourne du binaire non parsé (métadonnées
 uniquement). La solution retenue : serveur Python `http.server` exposant les
 fichiers, consommés par un node HTTP Request qui parse automatiquement le JSON.
 
-### 10 nodes au lieu des 4-6 suggérés
+### 9 nodes au lieu des 4-6 suggérés
 
 Le cahier des charges suggère 4-6 nodes comme guide de simplicité. Notre
 workflow en compte 10 pour trois raisons architecturales justifiées :

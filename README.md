@@ -71,8 +71,9 @@ data/flights.json   ──► HTTP Request (n8n) ──► Upsert Flights  ─�
 
 ```bash
 cp .env.example .env
-# Ouvre .env et remplis ta clé Groq :
+# Ouvre .env et remplis les valeurs :
 # GROQ_API_KEY=gsk_...
+# API_TOKENS=ton-token-secret
 ```
 
 ### 2. Lancer tous les services
@@ -134,9 +135,9 @@ curl http://localhost:8000/health
 # Résumé opérationnel du jour
 curl "http://localhost:8000/ops/summary?date=2026-01-10"
 
-# Déclencher l'analyse IA pour un vol
+# Déclencher l'analyse IA pour un vol (remplace <token> par la valeur de API_TOKENS dans .env)
 curl -X POST "http://localhost:8000/ai/analyze?flight_id=LC123" \
-     -H "Authorization: Bearer dev-token-123"
+     -H "Authorization: Bearer <token>"
 ```
 
 ### Exemple de réponse — GET /ops/summary
@@ -230,6 +231,29 @@ Le LLM prend le relais pour les cas ambigus. Voir `ai_logic.md`.
 `ON CONFLICT DO NOTHING / DO UPDATE` garantit qu'on peut relancer le workflow
 autant de fois qu'on veut sans créer de doublons en base.
 
+### Requêtes SQL avec range plutôt que DATE()
+
+Les requêtes filtrant par date utilisent un range sur `sched_dep_utc` au lieu
+de `DATE(sched_dep_utc) = x`. L'appel de fonction `DATE()` empêche Postgres
+d'utiliser l'index btree car il doit évaluer chaque ligne — c'est un full
+table scan. Le range permet à Postgres d'utiliser `idx_flights_sched_dep_utc`
+directement :
+
+```sql
+-- ❌ Full table scan — index inutilisé
+WHERE DATE(sched_dep_utc) = '2026-01-10'
+
+-- ✅ Index range scan — idx_flights_sched_dep_utc utilisé
+WHERE sched_dep_utc >= '2026-01-10'::date
+  AND sched_dep_utc <  '2026-01-10'::date + INTERVAL '1 day'
+```
+
+### Sécurité des tokens API
+
+Le Bearer token n'est jamais codé en dur dans le code source. Il est chargé
+depuis la variable d'environnement `API_TOKENS` au démarrage de l'API.
+Si la variable est absente, l'API refuse de démarrer avec une erreur explicite.
+
 ### python:3.11-slim et non alpine
 
 Alpine cause des problèmes de compilation avec `psycopg2` (musl vs glibc).
@@ -289,8 +313,9 @@ préféré à un HTTP Request vers un Incoming Webhook pour deux raisons :
 ## Sécurité
 
 - Aucun secret dans le repo (`.env` dans `.gitignore`)
-- Token Bearer pour protéger `POST /ai/analyze`
-- Clé Groq injectée via variable d'environnement Docker
+- `API_TOKENS` chargé depuis l'environnement — l'API refuse de démarrer si absent
+- `GROQ_API_KEY` injectée via variable d'environnement Docker
+- Bot Token Slack stocké dans les credentials n8n chiffrés (AES-256)
 - Conteneur API exécuté en utilisateur non-root
 - En production : Azure Key Vault + Managed Identity
 

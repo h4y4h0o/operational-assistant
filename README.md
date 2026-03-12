@@ -201,14 +201,13 @@ curl -X POST "http://localhost:8000/ai/analyze?flight_id=LC123" \
 |---|---|---|---|
 | 1 | Manual Trigger | `manualTrigger` | Déclenche le pipeline |
 | 2 | HTTP Request (flights) | `httpRequest` GET | Charge flights.json depuis le serveur local |
-| 3 | HTTP Request (incidents) | `httpRequest` GET | Charge incidents.json depuis le serveur local |
-| 4 | Upsert Flights | `postgres` Execute Query | INSERT ON CONFLICT DO UPDATE |
+| 3 | Upsert Flights | `postgres` Execute Query | INSERT ON CONFLICT DO UPDATE |
+| 4 | HTTP Request (incidents) | `httpRequest` GET | Charge incidents.json depuis le serveur local |
 | 5 | Upsert Incidents | `postgres` Execute Query | INSERT ON CONFLICT DO NOTHING |
-| 6 | Merge | `merge` Append | Attend la fin des 2 branches parallèles |
-| 7 | Call AI Analyze | `httpRequest` POST | POST /ai/analyze avec Bearer token |
-| 8 | Get Summary | `httpRequest` GET | GET /ops/summary |
-| 9 | Build Slack Message | `code` | Construit le message dynamique depuis les réponses API |
-| 10 | Send a message | `slack` | Envoie via Bot Token (Access Token) sur #ops-alerts |
+| 6 | Call AI Analyze | `httpRequest` POST | POST /ai/analyze avec Bearer token |
+| 7 | Get Summary | `httpRequest` GET | GET /ops/summary |
+| 8 | Build Slack Message | `code` | Construit le message dynamique depuis les réponses API |
+| 9 | Send a message | `slack` | Envoie via Bot Token (Access Token) sur #ops-alerts |
 
 ---
 
@@ -270,24 +269,18 @@ fichiers, consommés par un node HTTP Request qui parse automatiquement le JSON.
 Le cahier des charges suggère 4-6 nodes comme guide de simplicité. Notre
 workflow en compte 10 pour trois raisons architecturales justifiées :
 
-**1. Parallélisation du chargement (nodes 2, 3, 4, 5, 6)**
-
-Le chargement des vols et des incidents sont deux opérations indépendantes.
-Les exécuter en parallèle (2 branches + Merge) réduit le temps d'exécution
-de moitié par rapport à une approche séquentielle. C'est un choix de
-performance délibéré, pas une complexité inutile.
-
-```
-Séquentiel (4 nodes) : flights(1s) + incidents(1s) = 2s
-Parallèle  (5 nodes) : flights + incidents en même temps = 1s  ✅
-```
-
-**2. Séparation des responsabilités**
+**1. Séparation des responsabilités**
 
 Chaque node fait une seule chose (principe de responsabilité unique) :
 - Un node charge, un autre stocke, un autre analyse, un autre construit le message
 - Si un node échoue, on identifie immédiatement lequel et pourquoi
 - Un node unique "tout-en-un" serait plus difficile à déboguer et maintenir
+
+**2. Séquentialité flights → incidents**
+
+Le chargement est séquentiel : les vols sont insérés avant les incidents.
+Cela garantit l'intégrité référentielle — un incident référence un `flight_id`
+qui doit exister en base avant l'insertion.
 
 **3. Séquentialité obligatoire AI → Summary**
 
@@ -296,7 +289,7 @@ Chaque node fait une seule chose (principe de responsabilité unique) :
 la logique métier — ils restent donc deux nodes distincts.
 
 **Conclusion** : le compte de nodes n'est pas un indicateur de qualité.
-Un workflow bien structuré avec 10 nodes clairs est préférable à un workflow
+Un workflow bien structuré avec 9 nodes clairs est préférable à un workflow
 opaque avec 5 nodes qui font trop de choses.
 
 ### Node Slack natif plutôt que Incoming Webhook
